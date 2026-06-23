@@ -1,28 +1,292 @@
 <!DOCTYPE html>
-<html lang="uk">
+<html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>СТО CRM</title>
-  <link rel="stylesheet" href="style.css">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27><text y=%2714%27>🔧</text></svg>">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Стоматология — запись онлайн</title>
+
+<style>
+:root{
+  --blue:#4BB6FF;
+  --light:#f5f9fc;
+  --card:#ffffff;
+  --text:#1e2a32;
+  --gray:#dbe6ee;
+}
+
+body{
+  margin:0;
+  font-family: Arial, sans-serif;
+  background:var(--light);
+  color:var(--text);
+}
+
+/* HEADER */
+header{
+  background:var(--card);
+  padding:16px;
+  text-align:center;
+  font-size:18px;
+  font-weight:bold;
+  border-bottom:1px solid var(--gray);
+}
+
+/* CONTAINER */
+.container{
+  padding:12px;
+  max-width:900px;
+  margin:auto;
+}
+
+/* DATE */
+.date-box{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:10px;
+}
+
+input[type="date"]{
+  padding:10px;
+  border:1px solid var(--gray);
+  border-radius:10px;
+  font-size:16px;
+  width:100%;
+}
+
+/* SLOTS */
+.slots{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:10px;
+  margin-top:12px;
+}
+
+.slot{
+  background:var(--card);
+  padding:14px;
+  border-radius:12px;
+  border:1px solid var(--gray);
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  cursor:pointer;
+  transition:0.2s;
+}
+
+.slot:hover{
+  border-color:var(--blue);
+}
+
+.slot.booked{
+  background:#ffe8e8;
+  color:#b30000;
+  cursor:not-allowed;
+}
+
+.slot.blocked{
+  background:#e9eef2;
+  color:#777;
+  cursor:not-allowed;
+}
+
+/* BUTTON */
+button{
+  width:100%;
+  padding:14px;
+  background:var(--blue);
+  color:white;
+  border:none;
+  border-radius:12px;
+  font-size:16px;
+  margin-top:12px;
+}
+
+/* MODAL */
+.modal{
+  position:fixed;
+  top:0;left:0;
+  width:100%;height:100%;
+  background:rgba(0,0,0,0.4);
+  display:none;
+  justify-content:center;
+  align-items:center;
+}
+
+.modal-content{
+  background:white;
+  padding:16px;
+  border-radius:12px;
+  width:90%;
+  max-width:400px;
+}
+
+input, textarea{
+  width:100%;
+  margin-top:8px;
+  padding:10px;
+  border-radius:10px;
+  border:1px solid var(--gray);
+}
+
+/* ADMIN */
+.admin{
+  margin-top:20px;
+  padding:12px;
+  background:white;
+  border-radius:12px;
+  border:1px solid var(--gray);
+}
+
+.small{
+  font-size:12px;
+  color:#666;
+}
+</style>
 </head>
+
 <body>
-  <header>
-    <h1>СТО CRM</h1>
-    <nav class="nav_bar">
-        <button id="addClientBtn">+ Додати клієнта</button>
-        <button class="tabBtn" data-tab="clients">Активні</button>
-        <button class="tabBtn" data-tab="archive">Архів</button>
-        <button class="tabBtn" data-tab="trash">Видалені</button>
-        <button class="tabBtn" data-tab="shopping">Кошик</button>
-    </nav>
-  </header>
 
-  <main id="clientsContainer">
-    <!-- Картки рендеряться сюди -->
-  </main>
+<header>🦷 Стоматология — онлайн запись</header>
 
-  <script type="module" src="script.js"></script>
-</body>  
+<div class="container">
+
+  <div class="date-box">
+    <input type="date" id="date"/>
+  </div>
+
+  <div id="slots" class="slots"></div>
+
+  <button onclick="openAdmin()">Админ-панель</button>
+
+  <div class="admin">
+    <div class="small">Админ: блокировка дней и просмотр записей (локально)</div>
+  </div>
+
+</div>
+
+<!-- MODAL -->
+<div class="modal" id="modal">
+  <div class="modal-content">
+    <h3>Запись</h3>
+    <div id="selectedTime"></div>
+
+    <input id="name" placeholder="Имя"/>
+    <input id="phone" placeholder="Телефон"/>
+    <textarea id="comment" placeholder="Комментарий"></textarea>
+
+    <button onclick="saveBooking()">Подтвердить</button>
+  </div>
+</div>
+
+<script>
+const slotsEl = document.getElementById("slots");
+const dateEl = document.getElementById("date");
+
+let selectedDate = "";
+let selectedTime = "";
+
+/* 30-min slots */
+function generateSlots(){
+  const slots = [];
+  for(let h=9; h<18; h++){
+    slots.push(`${String(h).padStart(2,'0')}:00`);
+    slots.push(`${String(h).padStart(2,'0')}:30`);
+  }
+  return slots;
+}
+
+/* storage */
+function getData(){
+  return JSON.parse(localStorage.getItem("clinic") || "{}");
+}
+function setData(data){
+  localStorage.setItem("clinic", JSON.stringify(data));
+}
+
+/* render */
+function render(){
+  selectedDate = dateEl.value;
+  if(!selectedDate) return;
+
+  const data = getData();
+  const day = data[selectedDate] || {booked:{}, blocked:false};
+
+  slotsEl.innerHTML = "";
+
+  if(day.blocked){
+    slotsEl.innerHTML = "<div class='slot blocked'>🚫 Выходной день</div>";
+    return;
+  }
+
+  generateSlots().forEach(time=>{
+    const div = document.createElement("div");
+    div.className = "slot";
+
+    if(day.booked?.[time]){
+      div.classList.add("booked");
+      div.innerHTML = `<span>${time}</span><span>Занято</span>`;
+    } else {
+      div.innerHTML = `<span>${time}</span><span>Свободно</span>`;
+      div.onclick = ()=>openModal(time);
+    }
+
+    slotsEl.appendChild(div);
+  });
+}
+
+dateEl.addEventListener("change", render);
+
+/* modal */
+function openModal(time){
+  selectedTime = time;
+  document.getElementById("selectedTime").innerText = "Время: " + time;
+  document.getElementById("modal").style.display="flex";
+}
+
+function saveBooking(){
+  const name = document.getElementById("name").value;
+  const phone = document.getElementById("phone").value;
+  const comment = document.getElementById("comment").value;
+
+  const data = getData();
+  if(!data[selectedDate]) data[selectedDate] = {booked:{}, blocked:false};
+
+  data[selectedDate].booked[selectedTime] = {name, phone, comment};
+
+  setData(data);
+
+  document.getElementById("modal").style.display="none";
+  render();
+}
+
+/* admin */
+function openAdmin(){
+  const pass = prompt("Введите пароль администратора:");
+  if(pass !== "1234") return alert("Неверный пароль");
+
+  const cmd = prompt("Команда:\n1 - заблокировать день\n2 - разблокировать день");
+
+  const data = getData();
+  if(!data[selectedDate]) data[selectedDate] = {booked:{}, blocked:false};
+
+  if(cmd==="1"){
+    data[selectedDate].blocked = true;
+    alert("День заблокирован");
+  }
+  if(cmd==="2"){
+    data[selectedDate].blocked = false;
+    alert("День разблокирован");
+  }
+
+  setData(data);
+  render();
+}
+
+/* default date */
+dateEl.valueAsDate = new Date();
+render();
+</script>
+
+</body>
 </html>
