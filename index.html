@@ -1,113 +1,82 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Стоматология — запись онлайн</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Стоматология - запись</title>
 
 <style>
 :root{
   --blue:#4BB6FF;
-  --light:#f5f9fc;
-  --card:#ffffff;
+  --bg:#f5f9fc;
+  --card:#fff;
   --text:#1e2a32;
-  --gray:#dbe6ee;
+  --border:#dbe6ee;
 }
 
 body{
   margin:0;
-  font-family: Arial, sans-serif;
-  background:var(--light);
+  font-family:Arial;
+  background:var(--bg);
   color:var(--text);
 }
 
-/* HEADER */
 header{
-  background:var(--card);
-  padding:16px;
+  background:white;
+  padding:15px;
   text-align:center;
-  font-size:18px;
   font-weight:bold;
-  border-bottom:1px solid var(--gray);
+  border-bottom:1px solid var(--border);
 }
 
-/* CONTAINER */
 .container{
-  padding:12px;
   max-width:900px;
   margin:auto;
-}
-
-/* DATE */
-.date-box{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  margin-bottom:10px;
+  padding:12px;
 }
 
 input[type="date"]{
-  padding:10px;
-  border:1px solid var(--gray);
-  border-radius:10px;
-  font-size:16px;
   width:100%;
+  padding:12px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  font-size:16px;
 }
 
-/* SLOTS */
+/* slots */
 .slots{
+  margin-top:15px;
   display:grid;
-  grid-template-columns:1fr;
   gap:10px;
-  margin-top:12px;
 }
 
 .slot{
-  background:var(--card);
+  background:white;
   padding:14px;
   border-radius:12px;
-  border:1px solid var(--gray);
+  border:1px solid var(--border);
   display:flex;
   justify-content:space-between;
-  align-items:center;
   cursor:pointer;
-  transition:0.2s;
-}
-
-.slot:hover{
-  border-color:var(--blue);
 }
 
 .slot.booked{
   background:#ffe8e8;
-  color:#b30000;
+  color:#b10000;
   cursor:not-allowed;
 }
 
 .slot.blocked{
   background:#e9eef2;
-  color:#777;
-  cursor:not-allowed;
+  color:#666;
 }
 
-/* BUTTON */
-button{
-  width:100%;
-  padding:14px;
-  background:var(--blue);
-  color:white;
-  border:none;
-  border-radius:12px;
-  font-size:16px;
-  margin-top:12px;
-}
-
-/* MODAL */
+/* modal */
 .modal{
   position:fixed;
   top:0;left:0;
   width:100%;height:100%;
-  background:rgba(0,0,0,0.4);
+  background:rgba(0,0,0,0.5);
   display:none;
   justify-content:center;
   align-items:center;
@@ -115,27 +84,43 @@ button{
 
 .modal-content{
   background:white;
-  padding:16px;
+  padding:15px;
   border-radius:12px;
   width:90%;
   max-width:400px;
 }
 
-input, textarea{
+input,textarea{
   width:100%;
-  margin-top:8px;
+  margin-top:10px;
   padding:10px;
   border-radius:10px;
-  border:1px solid var(--gray);
+  border:1px solid var(--border);
 }
 
-/* ADMIN */
-.admin{
-  margin-top:20px;
+button{
+  width:100%;
   padding:12px;
+  margin-top:10px;
+  background:var(--blue);
+  border:none;
+  color:white;
+  border-radius:10px;
+  font-size:16px;
+}
+
+/* admin panel */
+.admin-panel{
+  margin-top:20px;
   background:white;
+  padding:12px;
   border-radius:12px;
-  border:1px solid var(--gray);
+  border:1px solid var(--border);
+}
+
+.record{
+  border-bottom:1px solid var(--border);
+  padding:10px 0;
 }
 
 .small{
@@ -147,21 +132,20 @@ input, textarea{
 
 <body>
 
-<header>🦷 Стоматология — онлайн запись</header>
+<header>🦷 Онлайн запись к стоматологу</header>
 
 <div class="container">
 
-  <div class="date-box">
-    <input type="date" id="date"/>
-  </div>
+<input type="date" id="date">
 
-  <div id="slots" class="slots"></div>
+<div id="slots" class="slots"></div>
 
-  <button onclick="openAdmin()">Админ-панель</button>
+<button onclick="admin()">Админ панель</button>
 
-  <div class="admin">
-    <div class="small">Админ: блокировка дней и просмотр записей (локально)</div>
-  </div>
+<div class="admin-panel">
+  <div class="small">Админ видит все записи</div>
+  <div id="adminData"></div>
+</div>
 
 </div>
 
@@ -169,123 +153,163 @@ input, textarea{
 <div class="modal" id="modal">
   <div class="modal-content">
     <h3>Запись</h3>
-    <div id="selectedTime"></div>
+    <div id="timeText"></div>
 
-    <input id="name" placeholder="Имя"/>
-    <input id="phone" placeholder="Телефон"/>
+    <input id="name" placeholder="Имя">
+    <input id="phone" placeholder="Телефон">
     <textarea id="comment" placeholder="Комментарий"></textarea>
 
-    <button onclick="saveBooking()">Подтвердить</button>
+    <button onclick="save()">Записаться</button>
   </div>
 </div>
 
 <script>
-const slotsEl = document.getElementById("slots");
-const dateEl = document.getElementById("date");
+let selectedDate="";
+let selectedTime="";
 
-let selectedDate = "";
-let selectedTime = "";
+document.getElementById("date").valueAsDate=new Date();
 
-/* 30-min slots */
-function generateSlots(){
-  const slots = [];
-  for(let h=9; h<18; h++){
-    slots.push(`${String(h).padStart(2,'0')}:00`);
-    slots.push(`${String(h).padStart(2,'0')}:30`);
+document.getElementById("date").addEventListener("change",()=>{
+  selectedDate=document.getElementById("date").value;
+  render();
+  renderAdmin();
+});
+
+function slots(){
+  let arr=[];
+  for(let h=9;h<18;h++){
+    arr.push(`${String(h).padStart(2,'0')}:00`);
+    arr.push(`${String(h).padStart(2,'0')}:30`);
   }
-  return slots;
+  return arr;
 }
 
-/* storage */
-function getData(){
-  return JSON.parse(localStorage.getItem("clinic") || "{}");
-}
-function setData(data){
-  localStorage.setItem("clinic", JSON.stringify(data));
+function get(){
+  return JSON.parse(localStorage.getItem("clinic")||"{}");
 }
 
-/* render */
+function set(d){
+  localStorage.setItem("clinic",JSON.stringify(d));
+}
+
 function render(){
-  selectedDate = dateEl.value;
-  if(!selectedDate) return;
+  let data=get();
+  let day=data[selectedDate]||{booked:{},blocked:false};
 
-  const data = getData();
-  const day = data[selectedDate] || {booked:{}, blocked:false};
-
-  slotsEl.innerHTML = "";
+  let el=document.getElementById("slots");
+  el.innerHTML="";
 
   if(day.blocked){
-    slotsEl.innerHTML = "<div class='slot blocked'>🚫 Выходной день</div>";
+    el.innerHTML="<div class='slot blocked'>🚫 Выходной день</div>";
     return;
   }
 
-  generateSlots().forEach(time=>{
-    const div = document.createElement("div");
-    div.className = "slot";
+  slots().forEach(t=>{
+    let div=document.createElement("div");
+    div.className="slot";
 
-    if(day.booked?.[time]){
+    if(day.booked[t]){
       div.classList.add("booked");
-      div.innerHTML = `<span>${time}</span><span>Занято</span>`;
-    } else {
-      div.innerHTML = `<span>${time}</span><span>Свободно</span>`;
-      div.onclick = ()=>openModal(time);
+      div.innerHTML=`<div>${t}</div><div>ЗАНЯТО</div>`;
+    }else{
+      div.innerHTML=`<div>${t}</div><div>СВОБОДНО</div>`;
+      div.onclick=()=>open(t);
     }
 
-    slotsEl.appendChild(div);
+    el.appendChild(div);
   });
 }
 
-dateEl.addEventListener("change", render);
-
-/* modal */
-function openModal(time){
-  selectedTime = time;
-  document.getElementById("selectedTime").innerText = "Время: " + time;
+function open(t){
+  selectedTime=t;
+  document.getElementById("timeText").innerText="Время: "+t;
   document.getElementById("modal").style.display="flex";
 }
 
-function saveBooking(){
-  const name = document.getElementById("name").value;
-  const phone = document.getElementById("phone").value;
-  const comment = document.getElementById("comment").value;
+function save(){
+  let d=get();
+  if(!d[selectedDate]) d[selectedDate]={booked:{},blocked:false};
 
-  const data = getData();
-  if(!data[selectedDate]) data[selectedDate] = {booked:{}, blocked:false};
+  d[selectedDate].booked[selectedTime]={
+    name:document.getElementById("name").value,
+    phone:document.getElementById("phone").value,
+    comment:document.getElementById("comment").value
+  };
 
-  data[selectedDate].booked[selectedTime] = {name, phone, comment};
-
-  setData(data);
-
+  set(d);
   document.getElementById("modal").style.display="none";
+
   render();
+  renderAdmin();
 }
 
-/* admin */
-function openAdmin(){
-  const pass = prompt("Введите пароль администратора:");
-  if(pass !== "1234") return alert("Неверный пароль");
+function admin(){
+  let pass=prompt("Пароль админа:");
+  if(pass!=="1234") return alert("Неверно");
 
-  const cmd = prompt("Команда:\n1 - заблокировать день\n2 - разблокировать день");
+  let action=prompt(
+`1 - заблокировать день
+2 - разблокировать день
+3 - удалить запись`
+  );
 
-  const data = getData();
-  if(!data[selectedDate]) data[selectedDate] = {booked:{}, blocked:false};
+  let d=get();
+  if(!d[selectedDate]) d[selectedDate]={booked:{},blocked:false};
 
-  if(cmd==="1"){
-    data[selectedDate].blocked = true;
-    alert("День заблокирован");
-  }
-  if(cmd==="2"){
-    data[selectedDate].blocked = false;
-    alert("День разблокирован");
+  if(action==="1"){
+    d[selectedDate].blocked=true;
   }
 
-  setData(data);
+  if(action==="2"){
+    d[selectedDate].blocked=false;
+  }
+
+  if(action==="3"){
+    let t=prompt("Время (например 10:00)");
+    delete d[selectedDate].booked[t];
+  }
+
+  set(d);
   render();
+  renderAdmin();
 }
 
-/* default date */
-dateEl.valueAsDate = new Date();
+function renderAdmin(){
+  let d=get();
+  let day=d[selectedDate]||{booked:{}};
+
+  let el=document.getElementById("adminData");
+  el.innerHTML="<h4>Записи:</h4>";
+
+  if(!day.booked) return;
+
+  Object.keys(day.booked).forEach(t=>{
+    let r=day.booked[t];
+
+    let div=document.createElement("div");
+    div.className="record";
+    div.innerHTML=`
+      <b>${t}</b><br>
+      ${r.name}<br>
+      ${r.phone}<br>
+      <span class="small">${r.comment}</span><br>
+      <button onclick="del('${t}')">Удалить</button>
+    `;
+    el.appendChild(div);
+  });
+}
+
+function del(t){
+  let d=get();
+  delete d[selectedDate].booked[t];
+  set(d);
+  render();
+  renderAdmin();
+}
+
+selectedDate=document.getElementById("date").value;
 render();
+renderAdmin();
 </script>
 
 </body>
